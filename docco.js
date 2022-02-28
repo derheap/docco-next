@@ -75,24 +75,37 @@
 // * `shiki`. Used to highlight source code
 //
 // In Javascript terms, this becomes:
-const path = require('path')
-const ejs = require('ejs')
-const globby = require('globby')
-const fs = require('fs-extra')
-const marked = require('marked').marked
-const commander = require('commander')
-const shiki = require('shiki')
+/// const path = require('path')
+import * as path from "https://deno.land/std@0.127.0/node/path.ts";
+/// const ejs = require('ejs')
+import * as ejs from "https://deno.land/x/dejs@0.10.2/mod.ts";
+///const globby = require('globby')
+/// Function maybe in Path
+/// const fs = require('fs-extra')
+import * as fs from "https://deno.land/std@0.127.0/fs/mod.ts";
+/// const marked = require('marked').marked
+import * as marked from "https://deno.land/x/markdown@v2.0.0/mod.ts";
+///const commander = require('commander')
+/// or use flags
+import { Command } from "https://deno.land/x/cliffy@v0.20.1/command/mod.ts";
 
+///const shiki = require('shiki')
+/// Replacement, no shiki
+import { setTheme, printHighlight } from 'https://deno.land/x/speed_highlight_js@1.1.6/src/term.js';
 // On startup, the `version` variable is worked out straight from the `package.json`
 // file, which is loaded using `require`
-const pkg = require('./package.json')
-const version = pkg.version
+// No package.json in Deno.land.
+// This had to go.
+/// const pkg = require('./package.json')
+export const version = '0.1.0'
 
 // Docco Next manages several languages, stored in `layouts/languages.json`.
 // Users can add more languages if desired. However, the list of default languages
 // (and their relevant information) is stored in `layouts/languages.json`
-const defaultLanguages = require('./layouts/languages.json')
-
+/// const defaultLanguages = require('./layouts/languages.json')
+const defaultLanguages = await import("./layouts/languages.json", {
+  assert: { type: "json" },
+});
 // By default, `marked` is run with very basic options (basically, just turning
 // `smartypants` on). Users can add more options, but this is the starting point
 const defaultMarkedOptions = { smartypants: true }
@@ -118,11 +131,11 @@ const defaultMarkedOptions = { smartypants: true }
 // out how the command is used.
 //
 // This is the full set of options available in Docco Next:
-async function run (args = process.argv) {
-  commander
-    .name('docco')
-    .version(version)
-    .usage('[options] files')
+export async function run(args = Deno.args) {
+  console.log(args)
+  const command = await new Command()
+    .name('docco-deno')
+    .usage('[OPTIONS] <FILES>')
     .option('-L, --languages [file]', 'use a custom languages.json')
     .option(
       '-l, --layout [name]',
@@ -142,6 +155,7 @@ async function run (args = process.argv) {
       '-x, --outputExtension [ext]',
       'set default file extension for all outputs'
     )
+    .arguments("<files...:string>")
     .parse(args)
   if (commander.args.length) {
     const config = { ...commander.opts(), args: commander.args }
@@ -183,7 +197,7 @@ async function run (args = process.argv) {
 // JSON files, and will be converted to objects by `cmdLineNormalise()`, which
 // reads:
 
-async function cmdLineNormalise (config) {
+async function cmdLineNormalise(config) {
   if (config.languages) {
     if (!(await fileExists(config.languages))) {
       console.error('Languages file not found:', config.languages)
@@ -250,7 +264,7 @@ async function cmdLineNormalise (config) {
 // object that every call can use. This is why every single function that uses
 // `config` will call `configure` first.
 
-function configure (config) {
+function configure(config) {
   if (config.configured) return
   config.configured = true
 
@@ -305,7 +319,7 @@ function configure (config) {
 // the "theme" used), `config.css` (the alternative CSS file used), and all files
 // specified in the `sources` array.
 //
-async function cmdLineSanityCheck (config) {
+async function cmdLineSanityCheck(config) {
   if (config.output && !(await dirExists(config.output))) {
     console.error('Output directory not found:', config.output)
     process.exit(1)
@@ -364,7 +378,7 @@ async function cmdLineSanityCheck (config) {
 
 // Here is the code for those functions:
 
-async function dirExists (dir) {
+async function dirExists(dir) {
   if (await fs.pathExists(dir)) {
     const stat = await fs.lstat(dir)
     return stat.isDirectory()
@@ -372,7 +386,7 @@ async function dirExists (dir) {
   return false
 }
 
-async function fileExists (dir) {
+async function fileExists(dir) {
   if (await fs.pathExists(dir)) {
     const stat = await fs.lstat(dir)
     return stat.isFile() || stat.isSymbolicLink()
@@ -380,7 +394,7 @@ async function fileExists (dir) {
   return false
 }
 
-function finalPath (source, config) {
+function finalPath(source, config) {
   const ext = config.outputExtension
   return path.join(
     config.output,
@@ -389,7 +403,7 @@ function finalPath (source, config) {
   )
 }
 
-async function copyAsset (file, type, config = {}) {
+export async function copyAsset(file, type, config = {}) {
   configure(config)
   if (!file) return
   if (type === 'file' && !(await fileExists(file))) return
@@ -397,16 +411,16 @@ async function copyAsset (file, type, config = {}) {
   return fs.copy(file, path.join(config.output, path.basename(file)))
 }
 
-async function write (source, path, contents) {
+async function write(source, path, contents) {
   console.log(`docco: ${source} -> ${path}`)
   await fs.outputFile(path, contents)
 }
 
-function properObjectWithKeys (o) {
+function properObjectWithKeys(o) {
   return typeof o === 'object' && o !== null && Object.keys(o).length
 }
 
-function getLanguage (source, config = {}) {
+function getLanguage(source, config = {}) {
   configure(config)
 
   let codeExt, codeLang, lang
@@ -444,7 +458,7 @@ function getLanguage (source, config = {}) {
 // Docco Next exports an API. So, every call that receives `config` will always
 // run `configure(config)` to make sure that sane defaults are set.
 
-async function documentAll (config = {}) {
+export async function documentAll(config = {}) {
   configure(config)
   await fs.mkdirs(config.output)
 
@@ -474,7 +488,7 @@ async function documentAll (config = {}) {
 //
 // Here is the source code:
 
-async function documentOne (source, config = {}) {
+export async function documentOne(source, config = {}) {
   configure(config)
   /* console.log(source) */
 
@@ -537,7 +551,7 @@ async function documentOne (source, config = {}) {
 // for example `something.js.md` -- that is, a Markdown file that
 // contains Javascript
 
-function litToCode (lines, config) {
+export function litToCode(lines, config) {
   configure(config)
 
   const lang = config.lang
@@ -605,7 +619,7 @@ function litToCode (lines, config) {
 // used: if there is anything in `codeText`, it means that the parser is
 // in the middle of a code section, and therefore the empty line will be
 // added to that code section.
-function parse (source, lines, config = {}) {
+export function parse(source, lines, config = {}) {
   let codeText, docsText
   const sections = []
 
@@ -671,7 +685,7 @@ function parse (source, lines, config = {}) {
   return sections
 }
 
-function codeToHtml (highlighter, code, language, lineNumber) {
+function codeToHtml(highlighter, code, language, lineNumber) {
   const htmlEscapes = {
     '&': '&amp;',
     '<': '&lt;',
@@ -680,7 +694,7 @@ function codeToHtml (highlighter, code, language, lineNumber) {
     "'": '&#39;'
   }
 
-  function escapeHtml (html) {
+  function escapeHtml(html) {
     return html.replace(/[&<>"']/g, (chr) => htmlEscapes[chr])
   }
 
@@ -693,7 +707,7 @@ function codeToHtml (highlighter, code, language, lineNumber) {
   }
 
   /* See: https://github.com/shikijs/shiki/blob/f322a2b97470b25b26a4d8c1cf4892b059eb69db/packages/shiki/src/renderer.ts */
-  function renderToHtml (lines, options = {}) {
+  function renderToHtml(lines, options = {}) {
     const bg = options.bg || 'transparent'
 
     const hasLineNumbers = typeof options.lineNumber === 'number'
@@ -773,9 +787,9 @@ function codeToHtml (highlighter, code, language, lineNumber) {
 //
 // If a plugin was
 // specified, the following functions from the plugin may be run:
-// 
-// * `plugin.beforeMarked` --  run before feeding the text to Marked. This 
-//   allows users to extend Markdown as neeed.  
+//
+// * `plugin.beforeMarked` --  run before feeding the text to Marked. This
+//   allows users to extend Markdown as neeed.
 // * `plugin.afterHtml` -- run after the HTML has been generated
 // * `plugin.finalPass` -- run once the whole file has been generated and
 //   it's ready to be written on the disk.
@@ -811,7 +825,7 @@ function codeToHtml (highlighter, code, language, lineNumber) {
 // multiple times, once for each passed file). Memoization avoids using a
 // global variable.
 //
-async function formatAsHtml (source, sections, config = {}) {
+export async function formatAsHtml(source, sections, config = {}) {
   configure(config)
 
   const lang = config.lang
@@ -823,7 +837,7 @@ async function formatAsHtml (source, sections, config = {}) {
   return makeHtmlBlob(source, sections, config, lang)
 
   /* Format and highlight the various section of the code, using */
-  async function formatSections (source, sections, config = {}, lang) {
+  async function formatSections(source, sections, config = {}, lang) {
     const highlighter = await shiki.getHighlighter({
       theme: config.shikiTheme || 'min-light'
     })
@@ -879,10 +893,10 @@ async function formatAsHtml (source, sections, config = {}) {
   /* Once all of the code has finished highlighting, we can **write** the resulting */
   /* documentation file by passing the completed HTML sections into the template, */
   /* and rendering it to the specified output path. */
-  async function makeHtmlBlob (source, sections, config = {}) {
+  async function makeHtmlBlob(source, sections, config = {}) {
     let first
 
-    async function _getTemplate (template) {
+    async function _getTemplate(template) {
       if (formatAsHtml._template) return formatAsHtml._template
 
       template = (await fs.readFile(template)).toString()
@@ -890,13 +904,13 @@ async function formatAsHtml (source, sections, config = {}) {
       return template
     }
 
-    function relativeToThisFile (file) {
+    function relativeToThisFile(file) {
       const from = path.resolve(path.dirname(thisFile))
       const to = path.resolve(path.dirname(file))
       return path.join(path.relative(from, to), path.basename(file))
     }
 
-    function includeText (source) {
+    function includeText(source) {
       return (s, silentFail) => {
         let contents
         let file
@@ -981,17 +995,10 @@ async function formatAsHtml (source, sections, config = {}) {
 // ----------
 // These functions are available once the module is `required()`. They are
 // self contained and can be used to take Docco Next to different directions.
-exports = module.exports = {
-  copyAsset,
-  run,
-  parse,
-  formatAsHtml,
-  litToCode,
-  documentOne,
-  documentAll,
-  version
-}
+/// @FIXME
 
+// And now run the main function with the commandline options.
+run(Deno.args)
 /*
 `rm -rf dir2/*; node --inspect-brk bin/docco  -o dir2 ./doccoOrig.js sub/doccoOrig.js`
 `rm -rf dir2/*; node bin/docco  -l default -L /tmp/extras.json -o dir2 ./docco.js
