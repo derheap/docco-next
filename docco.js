@@ -133,7 +133,7 @@ const defaultMarkedOptions = { smartypants: true }
 // This is the full set of options available in Docco Next:
 export async function run(args = Deno.args) {
   console.log(args)
-  const command = await new Command()
+  const commander = await new Command()
     .name('docco-deno')
     .usage('[OPTIONS] <FILES>')
     .option('-L, --languages [file]', 'use a custom languages.json')
@@ -157,8 +157,10 @@ export async function run(args = Deno.args) {
     )
     .arguments("<files...:string>")
     .parse(args)
+
+  console.log(commander);
   if (commander.args.length) {
-    const config = { ...commander.opts(), args: commander.args }
+    const config = { ...commander.opts, args: commander.args }
     await cmdLineNormalise(config)
     configure(config)
     await cmdLineSanityCheck(config)
