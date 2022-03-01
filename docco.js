@@ -230,7 +230,9 @@ async function cmdLineNormalise(config) {
     config.marked = JSON.parse(marked)
   }
 
-  config.sources = await globby(config.args)
+  // Globby does not exist on Deno. So we use the commandline expansion, if any …
+  /// config.sources = await globby(config.args)
+  config.sources = config.args[0]
 }
 
 // ### **Step 2: `configure()`**
@@ -281,6 +283,8 @@ function configure(config) {
     : defaultMarkedOptions
 
   config.layout = config.layout || 'default'
+  /// https://stackoverflow.com/questions/61829367/node-js-dirname-filename-equivalent-in-deno
+  const __dirname = new URL('.', import.meta.url).pathname;
   if (config.layout.match(/^[a-zA-Z0-9]+$/)) {
     config.layout = path.join(__dirname, 'layouts', config.layout)
   }
