@@ -91,13 +91,16 @@ import { Command } from "https://deno.land/x/cliffy@v0.20.1/command/mod.ts";
 
 ///const shiki = require('shiki')
 /// Replacement, no shiki
-import { setTheme, printHighlight } from 'https://deno.land/x/speed_highlight_js@1.1.6/src/term.js';
+import {
+  printHighlight,
+  setTheme,
+} from "https://deno.land/x/speed_highlight_js@1.1.6/src/term.js";
 // On startup, the `version` variable is worked out straight from the `package.json`
 // file, which is loaded using `require`
 // No package.json in Deno.land.
 // This had to go.
 /// const pkg = require('./package.json')
-export const version = '0.1.0'
+export const version = "0.1.0";
 
 // Docco Next manages several languages, stored in `layouts/languages.json`.
 // Users can add more languages if desired. However, the list of default languages
@@ -108,7 +111,7 @@ const defaultLanguages = await import("./layouts/languages.json", {
 });
 // By default, `marked` is run with very basic options (basically, just turning
 // `smartypants` on). Users can add more options, but this is the starting point
-const defaultMarkedOptions = { smartypants: true }
+const defaultMarkedOptions = { smartypants: true };
 
 // Configuration
 // ---------------
@@ -132,42 +135,42 @@ const defaultMarkedOptions = { smartypants: true }
 //
 // This is the full set of options available in Docco Next:
 export async function run(args = Deno.args) {
-  console.log(args)
+  console.log(args);
   const commander = await new Command()
-    .name('docco-deno')
-    .usage('[OPTIONS] <FILES>')
-    .option('-L, --languages [file]', 'use a custom languages.json')
+    .name("docco-deno")
+    .usage("[OPTIONS] <FILES>")
+    .option("-L, --languages [file]", "use a custom languages.json")
     .option(
-      '-l, --layout [name]',
-      'choose a layout (default, parallel or classic)'
+      "-l, --layout [name]",
+      "choose a layout (default, parallel or classic)",
     )
-    .option('-s, --shiki-theme [shikiTheme]', 'choose a shiki theme')
-    .option('-o, --output [path]', 'output to a given folder')
-    .option('-c, --css [file]', 'use a custom css file')
-    .option('-p, --plugin [file]', 'use a custom plugin file')
-    .option('-t, --template [file]', 'use a custom .ejs template')
+    .option("-s, --shiki-theme [shikiTheme]", "choose a shiki theme")
+    .option("-o, --output [path]", "output to a given folder")
+    .option("-c, --css [file]", "use a custom css file")
+    .option("-p, --plugin [file]", "use a custom plugin file")
+    .option("-t, --template [file]", "use a custom .ejs template")
     .option(
-      '-e, --inputExtension [ext]',
-      'assume a file extension for all inputs'
+      "-e, --inputExtension [ext]",
+      "assume a file extension for all inputs",
     )
-    .option('-m, --marked [file]', 'use custom marked options')
+    .option("-m, --marked [file]", "use custom marked options")
     .option(
-      '-x, --outputExtension [ext]',
-      'set default file extension for all outputs'
+      "-x, --outputExtension [ext]",
+      "set default file extension for all outputs",
     )
     .arguments("<files...:string>")
-    .parse(args)
+    .parse(args);
 
   console.log(commander);
   if (commander.args.length) {
-    const config = { ...commander.opts, args: commander.args }
-    await cmdLineNormalise(config)
-    configure(config)
-    await cmdLineSanityCheck(config)
+    const config = { ...commander.opts, args: commander.args };
+    await cmdLineNormalise(config);
+    configure(config);
+    await cmdLineSanityCheck(config);
 
-    await documentAll(config)
+    await documentAll(config);
   } else {
-    return console.log(commander.helpInformation())
+    return console.log(commander.helpInformation());
   }
 }
 
@@ -202,37 +205,37 @@ export async function run(args = Deno.args) {
 async function cmdLineNormalise(config) {
   if (config.languages) {
     if (!(await fileExists(config.languages))) {
-      console.error('Languages file not found:', config.languages)
-      process.exit(5)
+      console.error("Languages file not found:", config.languages);
+      process.exit(5);
     }
-    const languages = await fs.readFile(config.languages)
-    config.languages = JSON.parse(languages)
+    const languages = await fs.readFile(config.languages);
+    config.languages = JSON.parse(languages);
   }
 
   if (config.plugin) {
     if (!(await fileExists(config.plugin))) {
-      console.error('Plugin file not found:', config.plugin)
-      process.exit(5)
+      console.error("Plugin file not found:", config.plugin);
+      process.exit(5);
     }
-    config.plugin = require(path.join(process.cwd(), config.plugin))
+    config.plugin = require(path.join(process.cwd(), config.plugin));
   } else {
-    config.plugin = {}
+    config.plugin = {};
   }
 
-  if (!config.outputExtension) config.outputExtension = 'html'
+  if (!config.outputExtension) config.outputExtension = "html";
 
   if (config.marked) {
     if (!(await fileExists(config.marked))) {
-      console.error('Marked file not found:', config.marked)
-      process.exit(6)
+      console.error("Marked file not found:", config.marked);
+      process.exit(6);
     }
-    const marked = await fs.readFile(config.marked)
-    config.marked = JSON.parse(marked)
+    const marked = await fs.readFile(config.marked);
+    config.marked = JSON.parse(marked);
   }
 
   // Globby does not exist on Deno. So we use the commandline expansion, if any …
   /// config.sources = await globby(config.args)
-  config.sources = config.args[0]
+  config.sources = config.args[0];
 }
 
 // ### **Step 2: `configure()`**
@@ -269,47 +272,49 @@ async function cmdLineNormalise(config) {
 // `config` will call `configure` first.
 
 function configure(config) {
-  if (config.configured) return
-  config.configured = true
+  if (config.configured) return;
+  config.configured = true;
 
-  config.output = config.output || 'docs'
+  config.output = config.output || "docs";
 
   config.languages = properObjectWithKeys(config.languages)
     ? { ...defaultLanguages, ...config.languages }
-    : defaultLanguages
+    : defaultLanguages;
 
   config.marked = properObjectWithKeys(config.marked)
     ? { ...defaultMarkedOptions, ...config.marked }
-    : defaultMarkedOptions
+    : defaultMarkedOptions;
 
-  config.layout = config.layout || 'default'
+  config.layout = config.layout || "default";
   /// https://stackoverflow.com/questions/61829367/node-js-dirname-filename-equivalent-in-deno
-  const __dirname = new URL('.', import.meta.url).pathname;
+  const __dirname = new URL(".", import.meta.url).pathname;
   if (config.layout.match(/^[a-zA-Z0-9]+$/)) {
-    config.layout = path.join(__dirname, 'layouts', config.layout)
+    config.layout = path.join(__dirname, "layouts", config.layout);
   }
 
-  if (!config.css) config.css = path.join(config.layout, 'docco.css')
+  if (!config.css) config.css = path.join(config.layout, "docco.css");
 
-  config.public = path.join(config.layout, 'public')
+  config.public = path.join(config.layout, "public");
 
   if (!config.template) {
-    config.template = path.join(config.layout, 'docco.ejs')
+    config.template = path.join(config.layout, "docco.ejs");
   }
 
-  config.sources = config.sources || {}
+  config.sources = config.sources || {};
 
   config.sources = config.sources.filter((source) => {
-    const there = getLanguage(source, config)
+    const there = getLanguage(source, config);
     if (!there) {
       console.warn(
-        `docco: file not processed, language not supported: (${path.basename(
-          source
-        )})`
-      )
+        `docco: file not processed, language not supported: (${
+          path.basename(
+            source,
+          )
+        })`,
+      );
     }
-    return there
-  })
+    return there;
+  });
 }
 
 // ### **Step 3: `cmdLineSanityCheck()`**
@@ -327,12 +332,12 @@ function configure(config) {
 //
 async function cmdLineSanityCheck(config) {
   if (config.output && !(await dirExists(config.output))) {
-    console.error('Output directory not found:', config.output)
-    process.exit(1)
+    console.error("Output directory not found:", config.output);
+    process.exit(1);
   }
   if (config.layout && !(await dirExists(config.layout))) {
-    console.error('Layout directory not found:', config.layout)
-    process.exit(2)
+    console.error("Layout directory not found:", config.layout);
+    process.exit(2);
   }
 
   /*
@@ -345,8 +350,8 @@ async function cmdLineSanityCheck(config) {
   if (config.sources) {
     for (const source of config.sources) {
       if (source && !(await fileExists(source))) {
-        console.error('source file not found:', source)
-        process.exit(5)
+        console.error("source file not found:", source);
+        process.exit(5);
       }
     }
   }
@@ -385,72 +390,68 @@ async function cmdLineSanityCheck(config) {
 // Here is the code for those functions:
 
 async function dirExists(dir) {
-  if (await fs.pathExists(dir)) {
-    const stat = await fs.lstat(dir)
-    return stat.isDirectory()
-  }
-  return false
+  const stat = await Deno.stat(dir);
+  return stat.isDirectory;
 }
 
 async function fileExists(dir) {
-  if (await fs.pathExists(dir)) {
-    const stat = await fs.lstat(dir)
-    return stat.isFile() || stat.isSymbolicLink()
-  }
-  return false
+  const stat = await Deno.stat(dir);
+  return stat.isFile;
 }
 
 function finalPath(source, config) {
-  const ext = config.outputExtension
+  const ext = config.outputExtension;
   return path.join(
     config.output,
     path.dirname(source),
-    path.basename(source, path.extname(source)) + '.' + ext
-  )
+    path.basename(source, path.extname(source)) + "." + ext,
+  );
 }
 
 export async function copyAsset(file, type, config = {}) {
-  configure(config)
-  if (!file) return
-  if (type === 'file' && !(await fileExists(file))) return
-  if (type === 'directory' && !(await dirExists(file))) return
-  return fs.copy(file, path.join(config.output, path.basename(file)))
+  configure(config);
+  if (!file) return;
+  if (type === "file" && !(await fileExists(file))) return;
+  if (type === "directory" && !(await dirExists(file))) return;
+  return fs.copy(file, path.join(config.output, path.basename(file)), {
+    overwrite: true,
+  });
 }
 
 async function write(source, path, contents) {
-  console.log(`docco: ${source} -> ${path}`)
-  await fs.outputFile(path, contents)
+  console.log(`docco: ${source} -> ${path}`);
+  await fs.outputFile(path, contents);
 }
 
 function properObjectWithKeys(o) {
-  return typeof o === 'object' && o !== null && Object.keys(o).length
+  return typeof o === "object" && o !== null && Object.keys(o).length;
 }
 
 function getLanguage(source, config = {}) {
-  configure(config)
+  configure(config);
 
-  let codeExt, codeLang, lang
+  let codeExt, codeLang, lang;
 
-  const ext =
-    config.inputExtension || path.extname(source) || path.basename(source)
-  lang = config.languages[ext]
-  if (!lang) return
-  if (lang.name === 'markdown') {
-    codeExt = path.extname(path.basename(source, ext))
+  const ext = config.inputExtension || path.extname(source) ||
+    path.basename(source);
+  lang = config.languages[ext];
+  if (!lang) return;
+  if (lang.name === "markdown") {
+    codeExt = path.extname(path.basename(source, ext));
     if (codeExt) {
-      codeLang = config.languages[codeExt]
+      codeLang = config.languages[codeExt];
       if (codeLang) {
-        lang = { ...codeLang, literate: true }
+        lang = { ...codeLang, literate: true };
       }
     }
   }
   /* Add commentMatcher */
-  lang.commentMatcher = RegExp(`^\\s*${lang.symbol}\\s?`)
+  lang.commentMatcher = RegExp(`^\\s*${lang.symbol}\\s?`);
   /* Add commentFilter */
   /* Ignore [hashbangs](http://en.wikipedia.org/wiki/Shebang_%28Unix%29) and interpolations... */
-  lang.commentFilter = /(^#![/]|^\s*#\{)/
+  lang.commentFilter = /(^#![/]|^\s*#\{)/;
 
-  return lang
+  return lang;
 }
 
 // Now that everything _really is_ ready, it's time to (finally!) go through
@@ -465,15 +466,15 @@ function getLanguage(source, config = {}) {
 // run `configure(config)` to make sure that sane defaults are set.
 
 export async function documentAll(config = {}) {
-  configure(config)
-  await fs.mkdirs(config.output)
+  configure(config);
+  await Deno.mkdir(config.output, { recursive: true });
 
   for (const source of config.sources) {
-    await documentOne(source, config)
+    await documentOne(source, config);
   }
 
-  await copyAsset(config.css, 'file', config)
-  await copyAsset(config.public, 'directory', config)
+  await copyAsset(config.css, "file", config);
+  await copyAsset(config.public, "directory", config);
 }
 
 // `documentOne` is the centrepiece of the program: it uses the important
@@ -495,30 +496,32 @@ export async function documentAll(config = {}) {
 // Here is the source code:
 
 export async function documentOne(source, config = {}) {
-  configure(config)
+  configure(config);
   /* console.log(source) */
 
-  const buffer = await fs.readFile(source)
-  let lines = buffer.toString().split('\n')
-  const path = finalPath(source, config)
+  const buffer = await fs.readFile(source);
+  let lines = buffer.toString().split("\n");
+  const path = finalPath(source, config);
 
-  config.lang = getLanguage(source, config)
+  config.lang = getLanguage(source, config);
   if (!config.lang) {
     console.warn(
-      `docco: file not processed, language not supported: (${path.basename(
-        source
-      )})`
-    )
-    return
+      `docco: file not processed, language not supported: (${
+        path.basename(
+          source,
+        )
+      })`,
+    );
+    return;
   }
   if (config.lang.literate) {
-    lines = litToCode(lines, config)
+    lines = litToCode(lines, config);
   }
-  const sections = parse(source, lines, config)
+  const sections = parse(source, lines, config);
 
-  const result = await formatAsHtml(source, sections, config)
+  const result = await formatAsHtml(source, sections, config);
 
-  await write(source, path, result)
+  await write(source, path, result);
 }
 
 // The actual parsing and manipulation
@@ -558,36 +561,36 @@ export async function documentOne(source, config = {}) {
 // contains Javascript
 
 export function litToCode(lines, config) {
-  configure(config)
+  configure(config);
 
-  const lang = config.lang
-  const retLines = []
-  const markdownIndented = /^([ ]{4}|[ ]{0,3}\t)/
-  let inCode = lines[0] && markdownIndented.exec(lines[0])
+  const lang = config.lang;
+  const retLines = [];
+  const markdownIndented = /^([ ]{4}|[ ]{0,3}\t)/;
+  let inCode = lines[0] && markdownIndented.exec(lines[0]);
 
   /** Remembering that a source code line are those without leading "   ":
    * add a comment marker at the beginning of each non-code line
    * Take out the leading "    " from every code line
-   **/
+   */
   for (const [i, line] of lines.entries()) {
     /**
       Empty lines are a special case:
         - in code, they must stay blank.
         - In doc, they myst include the comment marker
     **/
-    const emptyLine = /^\s*$/.test(line)
+    const emptyLine = /^\s*$/.test(line);
     /* Non-empty lines are added depending on them being code or doc. */
     if (!emptyLine) {
-      inCode = markdownIndented.exec(line)
+      inCode = markdownIndented.exec(line);
       retLines[i] = inCode
         ? line.slice(inCode[0].length)
-        : lang.symbol + ' ' + line
+        : lang.symbol + " " + line;
       /* The concept of "empty" changes whether we are in code or not */
     } else {
-      retLines[i] = inCode ? '' : lang.symbol
+      retLines[i] = inCode ? "" : lang.symbol;
     }
   }
-  return retLines
+  return retLines;
 }
 
 // ## parse()
@@ -626,17 +629,17 @@ export function litToCode(lines, config) {
 // in the middle of a code section, and therefore the empty line will be
 // added to that code section.
 export function parse(source, lines, config = {}) {
-  let codeText, docsText
-  const sections = []
+  let codeText, docsText;
+  const sections = [];
 
-  configure(config)
+  configure(config);
 
-  const lang = config.lang
-  docsText = codeText = ''
-  let lineNumber = 0
-  let startLineNumber = 1
+  const lang = config.lang;
+  docsText = codeText = "";
+  let lineNumber = 0;
+  let startLineNumber = 1;
   for (let line of lines) {
-    lineNumber++
+    lineNumber++;
     /* If the line is not empty, it will either go in the code section */
     /* or the docs section, depending on whether the comment character was */
     /* found at the beginning of the line */
@@ -650,58 +653,58 @@ export function parse(source, lines, config = {}) {
          `docsText` and `codeText`
         */
         if (codeText) {
-          sections.push({ docsText, codeText, startLineNumber })
-          docsText = codeText = ''
+          sections.push({ docsText, codeText, startLineNumber });
+          docsText = codeText = "";
         }
 
         /* Add the line to the documentation (docsText) taking out the leading */
         /* comment marker */
         if (lang.symbol) {
-          line = line.replace(lang.commentMatcher, '')
+          line = line.replace(lang.commentMatcher, "");
         }
-        docsText += line + '\n'
+        docsText += line + "\n";
 
         /* If the line was a new markdown section (`===`,  `---` or `##`), */
         /* close off that section */
         if (/^(---+|===+|#+.*)$/.test(line)) {
-          sections.push({ docsText, codeText })
-          docsText = codeText = ''
+          sections.push({ docsText, codeText });
+          docsText = codeText = "";
         }
         /* Case #2: it's not a comment */
         /* Note that from this moment on `codeText` is no longer empty, */
         /* which means that the next comment line (destined to docsText) will */
         /* trigger a new section */
       } else {
-        if (codeText === '') {
-          startLineNumber = lineNumber
+        if (codeText === "") {
+          startLineNumber = lineNumber;
         }
-        codeText += line + '\n'
+        codeText += line + "\n";
       }
       /* If it's an empty line, it will go either in the */
       /* code section or in the docs section. */
       /* We know we are in the code section by checking if */
       /* there is any code in codeText yet */
     } else {
-      if (codeText) codeText += line + '\n'
-      else docsText += line + '\n'
+      if (codeText) codeText += line + "\n";
+      else docsText += line + "\n";
     }
   }
-  sections.push({ docsText, codeText, startLineNumber })
+  sections.push({ docsText, codeText, startLineNumber });
 
-  return sections
+  return sections;
 }
 
 function codeToHtml(highlighter, code, language, lineNumber) {
   const htmlEscapes = {
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    '"': '&quot;',
-    "'": '&#39;'
-  }
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;",
+  };
 
   function escapeHtml(html) {
-    return html.replace(/[&<>"']/g, (chr) => htmlEscapes[chr])
+    return html.replace(/[&<>"']/g, (chr) => htmlEscapes[chr]);
   }
 
   const FontStyle = {
@@ -709,69 +712,69 @@ function codeToHtml(highlighter, code, language, lineNumber) {
     None: 0,
     Italic: 1,
     Bold: 2,
-    Underline: 4
-  }
+    Underline: 4,
+  };
 
   /* See: https://github.com/shikijs/shiki/blob/f322a2b97470b25b26a4d8c1cf4892b059eb69db/packages/shiki/src/renderer.ts */
   function renderToHtml(lines, options = {}) {
-    const bg = options.bg || 'transparent'
+    const bg = options.bg || "transparent";
 
-    const hasLineNumbers = typeof options.lineNumber === 'number'
-    const lineNumber = options.lineNumber || 1
+    const hasLineNumbers = typeof options.lineNumber === "number";
+    const lineNumber = options.lineNumber || 1;
 
-    const numberOfNonEmptyLines = lines.filter((l) => l.length > 0).length
+    const numberOfNonEmptyLines = lines.filter((l) => l.length > 0).length;
     if (numberOfNonEmptyLines === 0) {
-      return ''
+      return "";
     }
 
-    let html = ''
+    let html = "";
 
-    html += `<pre class="shiki" style="background-color: ${bg}">`
+    html += `<pre class="shiki" style="background-color: ${bg}">`;
     if (options.langId) {
-      html += `<div class="language-id">${options.langId}</div>`
+      html += `<div class="language-id">${options.langId}</div>`;
     }
-    html +=
-      '<code ' +
-      (hasLineNumbers ? `style="--line-start-number: ${lineNumber};"` : '') +
-      '>'
+    html += "<code " +
+      (hasLineNumbers ? `style="--line-start-number: ${lineNumber};"` : "") +
+      ">";
 
     lines.forEach((l, idx) => {
-      const lineClasses = ['line', l.length > 0 ? undefined : 'empty-line']
+      const lineClasses = ["line", l.length > 0 ? undefined : "empty-line"]
         .filter(Boolean)
-        .join(' ')
-      const currentLineId = `L${lineNumber + idx}`
+        .join(" ");
+      const currentLineId = `L${lineNumber + idx}`;
 
-      html +=
-        `<span class="${lineClasses}"` +
-        (hasLineNumbers ? ` id="${currentLineId}"` : '') +
-        '>'
+      html += `<span class="${lineClasses}"` +
+        (hasLineNumbers ? ` id="${currentLineId}"` : "") +
+        ">";
 
       l.forEach((token) => {
-        const cssDeclarations = [`color: ${token.color || options.fg}`]
+        const cssDeclarations = [`color: ${token.color || options.fg}`];
         if (token.fontStyle & FontStyle.Italic) {
-          cssDeclarations.push('font-style: italic')
+          cssDeclarations.push("font-style: italic");
         }
         if (token.fontStyle & FontStyle.Bold) {
-          cssDeclarations.push('font-weight: bold')
+          cssDeclarations.push("font-weight: bold");
         }
         if (token.fontStyle & FontStyle.Underline) {
-          cssDeclarations.push('text-decoration: underline')
+          cssDeclarations.push("text-decoration: underline");
         }
-        html += `<span style="${cssDeclarations.join('; ')}">${escapeHtml(
-          token.content
-        )}</span>`
-      })
-      html += '</span>\n'
-    })
-    html = html.replace(/\n*$/, '') /* Get rid of final new lines */
-    html += '</code></pre>'
+        html += `<span style="${cssDeclarations.join("; ")}">${
+          escapeHtml(
+            token.content,
+          )
+        }</span>`;
+      });
+      html += "</span>\n";
+    });
+    html = html.replace(/\n*$/, ""); /* Get rid of final new lines */
+    html += "</code></pre>";
 
-    return html
+    return html;
   }
 
-  const tokens = highlighter.codeToThemedTokens(code, language)
+  const tokens = highlighter.codeToThemedTokens(code, language);
 
-  return renderToHtml(tokens, { lineNumber })
+  return renderToHtml(tokens, { lineNumber });
 }
 
 // ## formatAsHtml()
@@ -832,26 +835,26 @@ function codeToHtml(highlighter, code, language, lineNumber) {
 // global variable.
 //
 export async function formatAsHtml(source, sections, config = {}) {
-  configure(config)
+  configure(config);
 
-  const lang = config.lang
+  const lang = config.lang;
 
   /* Format sections, as HTML (from Markdown) or as highlighted code */
-  await formatSections(source, sections, config, lang)
+  await formatSections(source, sections, config, lang);
 
   /* return the HTML blob */
-  return makeHtmlBlob(source, sections, config, lang)
+  return makeHtmlBlob(source, sections, config, lang);
 
   /* Format and highlight the various section of the code, using */
   async function formatSections(source, sections, config = {}, lang) {
     const highlighter = await shiki.getHighlighter({
-      theme: config.shikiTheme || 'min-light'
-    })
+      theme: config.shikiTheme || "min-light",
+    });
 
     /* [Markdown](https://github.com/markedjs/marked) and Shiki */
     /* Set options specified by the user, using to `smartypants: true` */
     /* as a starting point */
-    marked.setOptions(config.marked)
+    marked.setOptions(config.marked);
 
     /* Code might happen within the markdown documentation as well! If that */
     /* is the case, it will highlight code either using the language specified */
@@ -859,39 +862,39 @@ export async function formatAsHtml(source, sections, config = {}) {
     /* file */
     marked.setOptions({
       highlight: function (code, language) {
-        if (!language) language = lang.name
+        if (!language) language = lang.name;
 
         try {
-          return codeToHtml(highlighter, code, language, undefined)
+          return codeToHtml(highlighter, code, language, undefined);
         } catch (error) {
           console.warn(
-            `${source}: language '${language}' not recognised, code block not highlighted`
-          )
-          return code
+            `${source}: language '${language}' not recognised, code block not highlighted`,
+          );
+          return code;
         }
-      }
-    })
+      },
+    });
 
     for (const section of sections) {
       let code = codeToHtml(
         highlighter,
         section.codeText,
         lang.name,
-        section.startLineNumber
-      )
+        section.startLineNumber,
+      );
 
-      code = code.replace(/\s+$/, '')
-      if (code !== '') section.codeHtml = `${code}`
-      else section.codeHtml = ''
+      code = code.replace(/\s+$/, "");
+      if (code !== "") section.codeHtml = `${code}`;
+      else section.codeHtml = "";
       if (config.plugin.beforeMarked) {
-        const newText = await config.plugin.beforeMarked(section.docsText)
-        section.docsText = newText
+        const newText = await config.plugin.beforeMarked(section.docsText);
+        section.docsText = newText;
       }
-      section.docsHtml = marked(section.docsText)
+      section.docsHtml = marked(section.docsText);
 
       if (config.plugin.afterHtml) {
-        const newHtml = await config.plugin.afterHtml(section.docsHtml)
-        section.docsHtml = newHtml
+        const newHtml = await config.plugin.afterHtml(section.docsHtml);
+        section.docsHtml = newHtml;
       }
     }
   }
@@ -900,75 +903,75 @@ export async function formatAsHtml(source, sections, config = {}) {
   /* documentation file by passing the completed HTML sections into the template, */
   /* and rendering it to the specified output path. */
   async function makeHtmlBlob(source, sections, config = {}) {
-    let first
+    let first;
 
     async function _getTemplate(template) {
-      if (formatAsHtml._template) return formatAsHtml._template
+      if (formatAsHtml._template) return formatAsHtml._template;
 
-      template = (await fs.readFile(template)).toString()
-      template = formatAsHtml._template = ejs.compile(template)
-      return template
+      template = (await fs.readFile(template)).toString();
+      template = formatAsHtml._template = ejs.compile(template);
+      return template;
     }
 
     function relativeToThisFile(file) {
-      const from = path.resolve(path.dirname(thisFile))
-      const to = path.resolve(path.dirname(file))
-      return path.join(path.relative(from, to), path.basename(file))
+      const from = path.resolve(path.dirname(thisFile));
+      const to = path.resolve(path.dirname(file));
+      return path.join(path.relative(from, to), path.basename(file));
     }
 
     function includeText(source) {
       return (s, silentFail) => {
-        let contents
-        let file
+        let contents;
+        let file;
         if (path.isAbsolute(s)) {
-          file = s
+          file = s;
         } else {
-          file = s
+          file = s;
         }
         try {
-          contents = fs.readFileSync(file)
-          return contents
+          contents = fs.readFileSync(file);
+          return contents;
         } catch (e) {
-          if (silentFail && e.code === 'ENOENT') return ''
-          if (e.code === 'ENOENT') {
-            console.error('Could not load included file:', file)
+          if (silentFail && e.code === "ENOENT") return "";
+          if (e.code === "ENOENT") {
+            console.error("Could not load included file:", file);
           } else {
-            console.log(e)
+            console.log(e);
           }
-          process.exit(100)
+          process.exit(100);
         }
-      }
+      };
     }
 
-    const thisFile = finalPath(source, config)
+    const thisFile = finalPath(source, config);
 
     /* Work out `title`, which will be either the first heading in the */
     /* documentation, or (as a last resort) the file name */
     const firstSection = sections.find((s) => {
-      return s.docsText.length > 0
-    })
-    let lexed
+      return s.docsText.length > 0;
+    });
+    let lexed;
     if (firstSection) {
-      lexed = marked.lexer(firstSection.docsText)
-      first = lexed[0]
+      lexed = marked.lexer(firstSection.docsText);
+      first = lexed[0];
     }
-    const maybeTitle = first && first.type === 'heading' && first.depth === 1
-    const title = maybeTitle ? first.text : path.basename(source)
-    const firstSectionIsTitle = maybeTitle && lexed.length === 1
+    const maybeTitle = first && first.type === "heading" && first.depth === 1;
+    const title = maybeTitle ? first.text : path.basename(source);
+    const firstSectionIsTitle = maybeTitle && lexed.length === 1;
 
     /* If the first section is the title, then get rid of it  */
     /* since the title is already being displayed by the template anyway */
     if (firstSectionIsTitle) {
-      sections.shift()
+      sections.shift();
     }
 
     /* The `css` variable will be available in the template as a relative */
     /* link to the CSS file */
     const css = relativeToThisFile(
-      path.join(config.output, path.basename(config.css))
-    )
+      path.join(config.output, path.basename(config.css)),
+    );
 
-    const template = await _getTemplate(config.template)
+    const template = await _getTemplate(config.template);
 
     /* Make up the HTML based on the template */
     let html = template({
@@ -985,15 +988,15 @@ export async function formatAsHtml(source, sections, config = {}) {
 
       hasTitle: firstSectionIsTitle, // compatibility to Docco's original API
       destination: (path) => finalPath(path, config), // compatibility to Docco's original API
-      relative: relativeToThisFile // compatibility to Docco's original API
-    })
+      relative: relativeToThisFile, // compatibility to Docco's original API
+    });
 
     /* Run the final pass */
     if (config.plugin.finalPass) {
-      html = await config.plugin.finalPass(html)
+      html = await config.plugin.finalPass(html);
     }
 
-    return html
+    return html;
   }
 }
 
@@ -1004,7 +1007,7 @@ export async function formatAsHtml(source, sections, config = {}) {
 /// @FIXME
 
 // And now run the main function with the commandline options.
-run(Deno.args)
+run(Deno.args);
 /*
 `rm -rf dir2/*; node --inspect-brk bin/docco  -o dir2 ./doccoOrig.js sub/doccoOrig.js`
 `rm -rf dir2/*; node bin/docco  -l default -L /tmp/extras.json -o dir2 ./docco.js
