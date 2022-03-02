@@ -106,9 +106,11 @@ export const version = "0.1.0";
 // Users can add more languages if desired. However, the list of default languages
 // (and their relevant information) is stored in `layouts/languages.json`
 /// const defaultLanguages = require('./layouts/languages.json')
-const defaultLanguages = await import("./layouts/languages.json", {
+const defaultLanguages = (await import("./layouts/languages.json", {
   assert: { type: "json" },
-});
+})).default;
+
+console.log(defaultLanguages)
 // By default, `marked` is run with very basic options (basically, just turning
 // `smartypants` on). Users can add more options, but this is the starting point
 const defaultMarkedOptions = { smartypants: true };
@@ -135,7 +137,7 @@ const defaultMarkedOptions = { smartypants: true };
 //
 // This is the full set of options available in Docco Next:
 export async function run(args = Deno.args) {
-  console.log(args);
+  //console.log(args);
   const commander = await new Command()
     .name("docco-deno")
     .usage("[OPTIONS] <FILES>")
@@ -161,7 +163,7 @@ export async function run(args = Deno.args) {
     .arguments("<files...:string>")
     .parse(args);
 
-  console.log(commander);
+  //console.log(commander);
   if (commander.args.length) {
     const config = { ...commander.opts, args: commander.args };
     await cmdLineNormalise(config);
@@ -206,7 +208,7 @@ async function cmdLineNormalise(config) {
   if (config.languages) {
     if (!(await fileExists(config.languages))) {
       console.error("Languages file not found:", config.languages);
-      process.exit(5);
+      Deno.exit(5);
     }
     const languages = await fs.readFile(config.languages);
     config.languages = JSON.parse(languages);
@@ -215,9 +217,9 @@ async function cmdLineNormalise(config) {
   if (config.plugin) {
     if (!(await fileExists(config.plugin))) {
       console.error("Plugin file not found:", config.plugin);
-      process.exit(5);
+      Deno.exit(5);
     }
-    config.plugin = require(path.join(process.cwd(), config.plugin));
+    config.plugin = require(path.join(Deno.cwd(), config.plugin));
   } else {
     config.plugin = {};
   }
@@ -227,7 +229,7 @@ async function cmdLineNormalise(config) {
   if (config.marked) {
     if (!(await fileExists(config.marked))) {
       console.error("Marked file not found:", config.marked);
-      process.exit(6);
+      Deno.exit(6);
     }
     const marked = await fs.readFile(config.marked);
     config.marked = JSON.parse(marked);
@@ -306,10 +308,9 @@ function configure(config) {
     const there = getLanguage(source, config);
     if (!there) {
       console.warn(
-        `docco: file not processed, language not supported: (${
-          path.basename(
-            source,
-          )
+        `docco: file not processed, language not supported: (${path.basename(
+          source,
+        )
         })`,
       );
     }
@@ -331,19 +332,23 @@ function configure(config) {
 // specified in the `sources` array.
 //
 async function cmdLineSanityCheck(config) {
+  /// Always create output directory.
+  if (config.output) {
+    await fs.ensureDir(config.output);
+  }
   if (config.output && !(await dirExists(config.output))) {
     console.error("Output directory not found:", config.output);
-    process.exit(1);
+    Deno.exit(1);
   }
   if (config.layout && !(await dirExists(config.layout))) {
     console.error("Layout directory not found:", config.layout);
-    process.exit(2);
+    Deno.exit(2);
   }
 
   /*
   if (config.css && !await fileExists(config.css)) {
     console.error('CSS file not found:', config.css)
-    process.exit(3)
+    Deno.exit(3)
   }
   */
 
@@ -351,7 +356,7 @@ async function cmdLineSanityCheck(config) {
     for (const source of config.sources) {
       if (source && !(await fileExists(source))) {
         console.error("source file not found:", source);
-        process.exit(5);
+        Deno.exit(5);
       }
     }
   }
@@ -390,13 +395,31 @@ async function cmdLineSanityCheck(config) {
 // Here is the code for those functions:
 
 async function dirExists(dir) {
-  const stat = await Deno.stat(dir);
-  return stat.isDirectory;
+  try {
+    const stat = await Deno.stat(dir);
+    return stat.isDirectory;
+  }
+  catch (err) {
+    if (err instanceof Deno.errors.NotFound) {
+      return false;
+    }
+
+    throw err;
+  }
 }
 
 async function fileExists(dir) {
-  const stat = await Deno.stat(dir);
-  return stat.isFile;
+  try {
+    const stat = await Deno.stat(dir);
+    return stat.isFile;
+  }
+  catch (err) {
+    if (err instanceof Deno.errors.NotFound) {
+      return false;
+    }
+
+    throw err;
+  }
 }
 
 function finalPath(source, config) {
@@ -499,17 +522,16 @@ export async function documentOne(source, config = {}) {
   configure(config);
   /* console.log(source) */
 
-  const buffer = await fs.readFile(source);
+  const buffer = await Deno.readFile(source);
   let lines = buffer.toString().split("\n");
   const path = finalPath(source, config);
 
   config.lang = getLanguage(source, config);
   if (!config.lang) {
     console.warn(
-      `docco: file not processed, language not supported: (${
-        path.basename(
-          source,
-        )
+      `docco: file not processed, language not supported: (${path.basename(
+        source,
+      )
       })`,
     );
     return;
@@ -758,11 +780,10 @@ function codeToHtml(highlighter, code, language, lineNumber) {
         if (token.fontStyle & FontStyle.Underline) {
           cssDeclarations.push("text-decoration: underline");
         }
-        html += `<span style="${cssDeclarations.join("; ")}">${
-          escapeHtml(
-            token.content,
-          )
-        }</span>`;
+        html += `<span style="${cssDeclarations.join("; ")}">${escapeHtml(
+          token.content,
+        )
+          }</span>`;
       });
       html += "</span>\n";
     });
@@ -938,7 +959,7 @@ export async function formatAsHtml(source, sections, config = {}) {
           } else {
             console.log(e);
           }
-          process.exit(100);
+          Deno.exit(100);
         }
       };
     }
