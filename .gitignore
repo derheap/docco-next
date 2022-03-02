@@ -65,3 +65,5 @@ typings/
 
 # Mac os files
 .DS_store
+
+testingInput/docs
