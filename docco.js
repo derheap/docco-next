@@ -146,7 +146,7 @@ export async function run(args = Deno.args) {
       "-l, --layout [name]",
       "choose a layout (default, parallel or classic)",
     )
-    .option("-s, --shiki-theme [shikiTheme]", "choose a shiki theme")
+    //.option("-s, --shiki-theme [shikiTheme]", "choose a shiki theme")
     .option("-o, --output [path]", "output to a given folder")
     .option("-c, --css [file]", "use a custom css file")
     .option("-p, --plugin [file]", "use a custom plugin file")
@@ -716,7 +716,7 @@ export function parse(source, lines, config = {}) {
   return sections;
 }
 
-function codeToHtml(highlighter, code, language, lineNumber) {
+async function codeToHtml(highlighter, code, language, lineNumber) {
   const htmlEscapes = {
     "&": "&amp;",
     "<": "&lt;",
@@ -793,8 +793,9 @@ function codeToHtml(highlighter, code, language, lineNumber) {
     return html;
   }
 
-  const tokens = highlighter.codeToThemedTokens(code, language);
-
+  ///const tokens = highlighter.codeToThemedTokens(code, language);
+  const highlighted = await highlighter(code, language);
+  console.log(highlighted);
   return renderToHtml(tokens, { lineNumber });
 }
 
@@ -868,36 +869,36 @@ export async function formatAsHtml(source, sections, config = {}) {
 
   /* Format and highlight the various section of the code, using */
   async function formatSections(source, sections, config = {}, lang) {
-    const highlighter = await shiki.getHighlighter({
-      theme: config.shikiTheme || "min-light",
-    });
+    // TH
+    await setTheme('default');
+    const highlighter = printHighlight;
 
     /* [Markdown](https://github.com/markedjs/marked) and Shiki */
     /* Set options specified by the user, using to `smartypants: true` */
     /* as a starting point */
-    marked.setOptions(config.marked);
+    ///marked.setOptions(config.marked);
 
     /* Code might happen within the markdown documentation as well! If that */
     /* is the case, it will highlight code either using the language specified */
     /* within the Markdown codeblock, or the default language used for the processes */
     /* file */
-    marked.setOptions({
-      highlight: function (code, language) {
-        if (!language) language = lang.name;
+    /*marked.setOptions({
+    highlight: function (code, language) {
+      if (!language) language = lang.name;
 
-        try {
-          return codeToHtml(highlighter, code, language, undefined);
-        } catch (error) {
-          console.warn(
-            `${source}: language '${language}' not recognised, code block not highlighted`,
-          );
-          return code;
-        }
-      },
-    });
-
+      try {
+        return codeToHtml(highlighter, code, language, undefined);
+      } catch (error) {
+        console.warn(
+          `${source}: language '${language}' not recognised, code block not highlighted`,
+        );
+        return code;
+      }
+    },
+  });
+*/
     for (const section of sections) {
-      let code = codeToHtml(
+      let code = await codeToHtml(
         highlighter,
         section.codeText,
         lang.name,
