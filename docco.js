@@ -84,17 +84,19 @@ import * as ejs from "https://deno.land/x/dejs@0.10.2/mod.ts";
 /// const fs = require('fs-extra')
 import * as fs from "https://deno.land/std@0.127.0/fs/mod.ts";
 /// const marked = require('marked').marked
-import * as marked from "https://deno.land/x/markdown@v2.0.0/mod.ts";
+import { Marked } from "https://deno.land/x/markdown@v2.0.0/mod.ts";
 ///const commander = require('commander')
 /// or use flags
 import { Command } from "https://deno.land/x/cliffy@v0.20.1/command/mod.ts";
-
 ///const shiki = require('shiki')
 /// Replacement, no shiki
 import {
-  printHighlight,
-  setTheme,
-} from "https://deno.land/x/speed_highlight_js@1.1.6/src/term.js";
+  highlightText, tokenize
+} from "https://deno.land/x/speed_highlight_js@1.1.6/src/index.js";
+
+
+import debug from "https://deno.land/x/debuglog/debug.ts";
+const log = debug("docco")
 // On startup, the `version` variable is worked out straight from the `package.json`
 // file, which is loaded using `require`
 // No package.json in Deno.land.
@@ -110,7 +112,7 @@ const defaultLanguages = (await import("./layouts/languages.json", {
   assert: { type: "json" },
 })).default;
 
-console.log(defaultLanguages)
+log(defaultLanguages)
 // By default, `marked` is run with very basic options (basically, just turning
 // `smartypants` on). Users can add more options, but this is the starting point
 const defaultMarkedOptions = { smartypants: true };
@@ -443,7 +445,7 @@ export async function copyAsset(file, type, config = {}) {
 
 async function write(source, path, contents) {
   console.log(`docco: ${source} -> ${path}`);
-  await fs.outputFile(path, contents);
+  await Deno.writeTextFile(path, contents);
 }
 
 function properObjectWithKeys(o) {
@@ -540,7 +542,7 @@ export async function documentOne(source, config = {}) {
     lines = litToCode(lines, config);
   }
   const sections = parse(source, lines, config);
-
+  log(sections);
   const result = await formatAsHtml(source, sections, config);
 
   await write(source, path, result);
@@ -793,10 +795,10 @@ async function codeToHtml(highlighter, code, language, lineNumber) {
     return html;
   }
 
-  ///const tokens = highlighter.codeToThemedTokens(code, language);
+  //const tokens = highlighter(code, language);
   const highlighted = await highlighter(code, language);
-  console.log(highlighted);
-  return renderToHtml(tokens, { lineNumber });
+  //return renderToHtml(tokens, { lineNumber });
+  return highlighted
 }
 
 // ## formatAsHtml()
@@ -869,9 +871,7 @@ export async function formatAsHtml(source, sections, config = {}) {
 
   /* Format and highlight the various section of the code, using */
   async function formatSections(source, sections, config = {}, lang) {
-    // TH
-    await setTheme('default');
-    const highlighter = printHighlight;
+    const highlighter = highlightText;
 
     /* [Markdown](https://github.com/markedjs/marked) and Shiki */
     /* Set options specified by the user, using to `smartypants: true` */
@@ -912,7 +912,7 @@ export async function formatAsHtml(source, sections, config = {}) {
         const newText = await config.plugin.beforeMarked(section.docsText);
         section.docsText = newText;
       }
-      section.docsHtml = marked(section.docsText);
+      section.docsHtml = Marked.parse(section.docsText);
 
       if (config.plugin.afterHtml) {
         const newHtml = await config.plugin.afterHtml(section.docsHtml);
@@ -930,8 +930,9 @@ export async function formatAsHtml(source, sections, config = {}) {
     async function _getTemplate(template) {
       if (formatAsHtml._template) return formatAsHtml._template;
 
-      template = (await fs.readFile(template)).toString();
-      template = formatAsHtml._template = ejs.compile(template);
+      /// @see https://decipher.dev/deno-by-example/advanced-readline/
+      const templateReader = (await Deno.open(template));
+      template = formatAsHtml._template = ejs.compile(templateReader);
       return template;
     }
 
