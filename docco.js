@@ -91,12 +91,12 @@ import { Command } from "https://deno.land/x/cliffy@v0.20.1/command/mod.ts";
 ///const shiki = require('shiki')
 /// Replacement, no shiki
 import {
-  highlightText, tokenize
+  highlightText,
+  tokenize,
 } from "https://deno.land/x/speed_highlight_js@1.1.6/src/index.js";
 
-
 import debug from "https://deno.land/x/debuglog/debug.ts";
-const log = debug("docco")
+const log = debug("docco");
 // On startup, the `version` variable is worked out straight from the `package.json`
 // file, which is loaded using `require`
 // No package.json in Deno.land.
@@ -112,7 +112,6 @@ const defaultLanguages = (await import("./layouts/languages.json", {
   assert: { type: "json" },
 })).default;
 
-log(defaultLanguages)
 // By default, `marked` is run with very basic options (basically, just turning
 // `smartypants` on). Users can add more options, but this is the starting point
 const defaultMarkedOptions = { smartypants: true };
@@ -139,7 +138,6 @@ const defaultMarkedOptions = { smartypants: true };
 //
 // This is the full set of options available in Docco Next:
 export async function run(args = Deno.args) {
-  //console.log(args);
   const commander = await new Command()
     .name("docco-deno")
     .usage("[OPTIONS] <FILES>")
@@ -165,13 +163,14 @@ export async function run(args = Deno.args) {
     .arguments("<files...:string>")
     .parse(args);
 
-  //console.log(commander);
   if (commander.args.length) {
-    const config = { ...commander.opts, args: commander.args };
+    log("CLI opts %O", commander.options);
+    log("CLI args %O", commander.args);
+    const config = { ...commander.options, args: commander.args };
     await cmdLineNormalise(config);
     configure(config);
     await cmdLineSanityCheck(config);
-
+    log("Config: %O", config);
     await documentAll(config);
   } else {
     return console.log(commander.helpInformation());
@@ -310,9 +309,10 @@ function configure(config) {
     const there = getLanguage(source, config);
     if (!there) {
       console.warn(
-        `docco: file not processed, language not supported: (${path.basename(
-          source,
-        )
+        `docco: file not processed, language not supported: (${
+          path.basename(
+            source,
+          )
         })`,
       );
     }
@@ -400,8 +400,7 @@ async function dirExists(dir) {
   try {
     const stat = await Deno.stat(dir);
     return stat.isDirectory;
-  }
-  catch (err) {
+  } catch (err) {
     if (err instanceof Deno.errors.NotFound) {
       return false;
     }
@@ -414,8 +413,7 @@ async function fileExists(dir) {
   try {
     const stat = await Deno.stat(dir);
     return stat.isFile;
-  }
-  catch (err) {
+  } catch (err) {
     if (err instanceof Deno.errors.NotFound) {
       return false;
     }
@@ -470,6 +468,9 @@ function getLanguage(source, config = {}) {
       }
     }
   }
+  if (lang.name === "javascript") {
+    lang.name = "js";
+  }
   /* Add commentMatcher */
   lang.commentMatcher = RegExp(`^\\s*${lang.symbol}\\s?`);
   /* Add commentFilter */
@@ -522,18 +523,18 @@ export async function documentAll(config = {}) {
 
 export async function documentOne(source, config = {}) {
   configure(config);
-  /* console.log(source) */
 
-  const buffer = await Deno.readFile(source);
-  let lines = buffer.toString().split("\n");
+  const buffer = await Deno.readTextFile(source);
+  let lines = buffer.split("\n");
   const path = finalPath(source, config);
 
   config.lang = getLanguage(source, config);
   if (!config.lang) {
     console.warn(
-      `docco: file not processed, language not supported: (${path.basename(
-        source,
-      )
+      `docco: file not processed, language not supported: (${
+        path.basename(
+          source,
+        )
       })`,
     );
     return;
@@ -541,8 +542,9 @@ export async function documentOne(source, config = {}) {
   if (config.lang.literate) {
     lines = litToCode(lines, config);
   }
+  log("=================\nFile to parse: %s", source);
   const sections = parse(source, lines, config);
-  log(sections);
+  log(sections.slice(0, 5));
   const result = await formatAsHtml(source, sections, config);
 
   await write(source, path, result);
@@ -739,66 +741,36 @@ async function codeToHtml(highlighter, code, language, lineNumber) {
     Underline: 4,
   };
 
-  /* See: https://github.com/shikijs/shiki/blob/f322a2b97470b25b26a4d8c1cf4892b059eb69db/packages/shiki/src/renderer.ts */
   function renderToHtml(lines, options = {}) {
     const bg = options.bg || "transparent";
 
     const hasLineNumbers = typeof options.lineNumber === "number";
     const lineNumber = options.lineNumber || 1;
 
-    const numberOfNonEmptyLines = lines.filter((l) => l.length > 0).length;
+    const numberOfNonEmptyLines = 1;
     if (numberOfNonEmptyLines === 0) {
       return "";
     }
 
     let html = "";
 
-    html += `<pre class="shiki" style="background-color: ${bg}">`;
+    html += `<pre style="background-color: ${bg}">`;
     if (options.langId) {
       html += `<div class="language-id">${options.langId}</div>`;
     }
-    html += "<code " +
+    html += '<code class="shj-lang-js shj-multiline"' +
       (hasLineNumbers ? `style="--line-start-number: ${lineNumber};"` : "") +
       ">";
 
-    lines.forEach((l, idx) => {
-      const lineClasses = ["line", l.length > 0 ? undefined : "empty-line"]
-        .filter(Boolean)
-        .join(" ");
-      const currentLineId = `L${lineNumber + idx}`;
-
-      html += `<span class="${lineClasses}"` +
-        (hasLineNumbers ? ` id="${currentLineId}"` : "") +
-        ">";
-
-      l.forEach((token) => {
-        const cssDeclarations = [`color: ${token.color || options.fg}`];
-        if (token.fontStyle & FontStyle.Italic) {
-          cssDeclarations.push("font-style: italic");
-        }
-        if (token.fontStyle & FontStyle.Bold) {
-          cssDeclarations.push("font-weight: bold");
-        }
-        if (token.fontStyle & FontStyle.Underline) {
-          cssDeclarations.push("text-decoration: underline");
-        }
-        html += `<span style="${cssDeclarations.join("; ")}">${escapeHtml(
-          token.content,
-        )
-          }</span>`;
-      });
-      html += "</span>\n";
-    });
+    html += lines;
     html = html.replace(/\n*$/, ""); /* Get rid of final new lines */
     html += "</code></pre>";
 
     return html;
   }
 
-  //const tokens = highlighter(code, language);
   const highlighted = await highlighter(code, language);
-  //return renderToHtml(tokens, { lineNumber });
-  return highlighted
+  return renderToHtml(highlighted, { lineNumber });
 }
 
 // ## formatAsHtml()
@@ -896,7 +868,7 @@ export async function formatAsHtml(source, sections, config = {}) {
       }
     },
   });
-*/
+    */
     for (const section of sections) {
       let code = await codeToHtml(
         highlighter,
@@ -906,14 +878,15 @@ export async function formatAsHtml(source, sections, config = {}) {
       );
 
       code = code.replace(/\s+$/, "");
+      //log("Code:", code);
+
       if (code !== "") section.codeHtml = `${code}`;
       else section.codeHtml = "";
       if (config.plugin.beforeMarked) {
         const newText = await config.plugin.beforeMarked(section.docsText);
         section.docsText = newText;
       }
-      section.docsHtml = Marked.parse(section.docsText);
-
+      section.docsHtml = Marked.parse(section.docsText).content;
       if (config.plugin.afterHtml) {
         const newHtml = await config.plugin.afterHtml(section.docsHtml);
         section.docsHtml = newHtml;
@@ -975,8 +948,8 @@ export async function formatAsHtml(source, sections, config = {}) {
     });
     let lexed;
     if (firstSection) {
-      lexed = marked.lexer(firstSection.docsText);
-      first = lexed[0];
+      ///lexed = marked.lexer(firstSection.docsText);
+      ///first = lexed[0];
     }
     const maybeTitle = first && first.type === "heading" && first.depth === 1;
     const title = maybeTitle ? first.text : path.basename(source);
